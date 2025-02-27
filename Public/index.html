@@ -7,7 +7,7 @@
   <h1>My Recipes</h1>
   <form action="/recipes" method="POST">
     <input type="text" name="title" placeholder="Recipe Name"><br>
-    <input type="text" name="ingredients" placeholder="Ingredients (comma-separated, e.g., flour, cheese)"><br>
+    <input type="text" name="ingredients" placeholder="Ingredients (e.g., 2 cups flour, 1 tsp salt)"><br>
     <button type="submit">Add Recipe</button>
   </form>
   <ul id="recipe-list"></ul>
@@ -17,23 +17,19 @@
         .then(response => response.json())
         .then(recipes => {
           const list = document.getElementById('recipe-list');
-          list.innerHTML = ''; // Clear the list
+          list.innerHTML = '';
           recipes.forEach(recipe => {
             const li = document.createElement('li');
             li.textContent = recipe.title;
-
-            // Add delete button
             const deleteBtn = document.createElement('button');
             deleteBtn.textContent = 'Delete';
             deleteBtn.onclick = () => deleteRecipe(recipe.id);
             li.appendChild(deleteBtn);
-
-            // Add ingredients sublist
             if (recipe.ingredients.length > 0) {
               const ul = document.createElement('ul');
               recipe.ingredients.forEach(ing => {
                 const ingLi = document.createElement('li');
-                ingLi.textContent = ing;
+                ingLi.textContent = `${ing.quantity} ${ing.unit} ${ing.name}`;
                 ul.appendChild(ingLi);
               });
               li.appendChild(ul);
@@ -48,7 +44,7 @@
       fetch(`/recipes/${recipeId}`, { method: 'DELETE' })
         .then(response => {
           if (response.ok) {
-            loadRecipes(); // Refresh the list
+            loadRecipes();
           } else {
             console.log('Delete failed');
           }
@@ -56,7 +52,6 @@
         .catch(err => console.log('Delete Error:', err));
     }
 
-    // Load recipes on page load
     loadRecipes();
   </script>
 </body>
