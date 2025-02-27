@@ -10,9 +10,20 @@ app.post('/recipes', (req, res) => {
   const recipeTitle = req.body.title;
   db.run('INSERT INTO recipes (title) VALUES (?)', [recipeTitle], (err) => {
     if (err) {
+      console.log('Error:', err); // Log errors
       res.send('Error adding recipe');
     } else {
-      res.redirect('/'); // Back to the form
+      res.redirect('/');
+    }
+  });
+});
+app.get('/recipes', (req, res) => {
+  db.all('SELECT * FROM recipes', (err, rows) => {
+    if (err) {
+      console.log('Fetch Error:', err); // Log fetch issues
+      res.send('Error fetching recipes');
+    } else {
+      res.json(rows); // Send recipes as JSON
     }
   });
 });

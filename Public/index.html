@@ -10,5 +10,18 @@
     <button type="submit">Add Recipe</button>
   </form>
   <ul id="recipe-list"></ul>
+  <script>
+    fetch('/recipes')
+      .then(response => response.json())
+      .then(recipes => {
+        const list = document.getElementById('recipe-list');
+        recipes.forEach(recipe => {
+          const li = document.createElement('li');
+          li.textContent = recipe.title;
+          list.appendChild(li);
+        });
+      })
+      .catch(err => console.log('Fetch Error:', err)); // Log any fetch errors
+  </script>
 </body>
 </html>
