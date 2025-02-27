@@ -9,14 +9,12 @@ app.get('/', (req, res) => {
 app.post('/recipes', (req, res) => {
   const recipeTitle = req.body.title;
   const ingredients = req.body.ingredients ? req.body.ingredients.split(',').map(i => i.trim()) : [];
-  // Step 1: Insert the recipe
   db.run('INSERT INTO recipes (title) VALUES (?)', [recipeTitle], function(err) {
     if (err) {
       console.log('Error adding recipe:', err);
       return res.send('Error adding recipe');
     }
-    const recipeId = this.lastID; // Get the new recipe's ID
-    // Step 2: Insert each ingredient
+    const recipeId = this.lastID;
     if (ingredients.length > 0) {
       const placeholders = ingredients.map(() => '(?, ?)').join(',');
       const values = ingredients.flatMap(ing => [recipeId, ing]);
@@ -28,7 +26,7 @@ app.post('/recipes', (req, res) => {
         res.redirect('/');
       });
     } else {
-      res.redirect('/'); // No ingredients, just redirect
+      res.redirect('/');
     }
   });
 });
@@ -38,7 +36,6 @@ app.get('/recipes', (req, res) => {
       console.log('Fetch Error:', err);
       return res.send('Error fetching recipes');
     }
-    // Group ingredients by recipe
     const recipes = {};
     rows.forEach(row => {
       if (!recipes[row.id]) {
@@ -49,6 +46,24 @@ app.get('/recipes', (req, res) => {
       }
     });
     res.json(Object.values(recipes));
+  });
+});
+app.delete('/recipes/:id', (req, res) => {
+  const recipeId = req.params.id;
+  // Delete ingredients first (due to foreign key)
+  db.run('DELETE FROM ingredients WHERE recipe_id = ?', [recipeId], (err) => {
+    if (err) {
+      console.log('Error deleting ingredients:', err);
+      return res.status(500).send('Error deleting ingredients');
+    }
+    // Then delete the recipe
+    db.run('DELETE FROM recipes WHERE id = ?', [recipeId], (err) => {
+      if (err) {
+        console.log('Error deleting recipe:', err);
+        return res.status(500).send('Error deleting recipe');
+      }
+      res.status(200).send('Recipe deleted');
+    });
   });
 });
 app.listen(3000, () => console.log('Server running on port 3000'));

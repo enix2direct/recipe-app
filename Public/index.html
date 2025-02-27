@@ -12,26 +12,52 @@
   </form>
   <ul id="recipe-list"></ul>
   <script>
-    fetch('/recipes')
-      .then(response => response.json())
-      .then(recipes => {
-        const list = document.getElementById('recipe-list');
-        recipes.forEach(recipe => {
-          const li = document.createElement('li');
-          li.textContent = recipe.title;
-          if (recipe.ingredients.length > 0) {
-            const ul = document.createElement('ul');
-            recipe.ingredients.forEach(ing => {
-              const ingLi = document.createElement('li');
-              ingLi.textContent = ing;
-              ul.appendChild(ingLi);
-            });
-            li.appendChild(ul);
+    function loadRecipes() {
+      fetch('/recipes')
+        .then(response => response.json())
+        .then(recipes => {
+          const list = document.getElementById('recipe-list');
+          list.innerHTML = ''; // Clear the list
+          recipes.forEach(recipe => {
+            const li = document.createElement('li');
+            li.textContent = recipe.title;
+
+            // Add delete button
+            const deleteBtn = document.createElement('button');
+            deleteBtn.textContent = 'Delete';
+            deleteBtn.onclick = () => deleteRecipe(recipe.id);
+            li.appendChild(deleteBtn);
+
+            // Add ingredients sublist
+            if (recipe.ingredients.length > 0) {
+              const ul = document.createElement('ul');
+              recipe.ingredients.forEach(ing => {
+                const ingLi = document.createElement('li');
+                ingLi.textContent = ing;
+                ul.appendChild(ingLi);
+              });
+              li.appendChild(ul);
+            }
+            list.appendChild(li);
+          });
+        })
+        .catch(err => console.log('Fetch Error:', err));
+    }
+
+    function deleteRecipe(recipeId) {
+      fetch(`/recipes/${recipeId}`, { method: 'DELETE' })
+        .then(response => {
+          if (response.ok) {
+            loadRecipes(); // Refresh the list
+          } else {
+            console.log('Delete failed');
           }
-          list.appendChild(li);
-        });
-      })
-      .catch(err => console.log('Fetch Error:', err));
+        })
+        .catch(err => console.log('Delete Error:', err));
+    }
+
+    // Load recipes on page load
+    loadRecipes();
   </script>
 </body>
 </html>
