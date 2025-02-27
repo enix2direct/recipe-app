@@ -6,7 +6,8 @@
 <body>
   <h1>My Recipes</h1>
   <form action="/recipes" method="POST">
-    <input type="text" name="title" placeholder="Recipe Name">
+    <input type="text" name="title" placeholder="Recipe Name"><br>
+    <input type="text" name="ingredients" placeholder="Ingredients (comma-separated, e.g., flour, cheese)"><br>
     <button type="submit">Add Recipe</button>
   </form>
   <ul id="recipe-list"></ul>
@@ -18,10 +19,19 @@
         recipes.forEach(recipe => {
           const li = document.createElement('li');
           li.textContent = recipe.title;
+          if (recipe.ingredients.length > 0) {
+            const ul = document.createElement('ul');
+            recipe.ingredients.forEach(ing => {
+              const ingLi = document.createElement('li');
+              ingLi.textContent = ing;
+              ul.appendChild(ingLi);
+            });
+            li.appendChild(ul);
+          }
           list.appendChild(li);
         });
       })
-      .catch(err => console.log('Fetch Error:', err)); // Log any fetch errors
+      .catch(err => console.log('Fetch Error:', err));
   </script>
 </body>
 </html>
