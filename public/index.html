@@ -11,6 +11,8 @@
     <button type="submit">Add Recipe</button>
   </form>
   <ul id="recipe-list"></ul>
+  <h2>Meal Plan</h2>
+  <ul id="meal-plan"></ul>
   <script>
     function loadRecipes() {
       fetch('/recipes')
@@ -25,6 +27,10 @@
             deleteBtn.textContent = 'Delete';
             deleteBtn.onclick = () => deleteRecipe(recipe.id);
             li.appendChild(deleteBtn);
+            const planBtn = document.createElement('button');
+            planBtn.textContent = 'Plan';
+            planBtn.onclick = () => planRecipe(recipe.id);
+            li.appendChild(planBtn);
             if (recipe.ingredients.length > 0) {
               const ul = document.createElement('ul');
               recipe.ingredients.forEach(ing => {
@@ -36,8 +42,21 @@
             }
             list.appendChild(li);
           });
-        })
-        .catch(err => console.log('Fetch Error:', err));
+        });
+    }
+
+    function loadMealPlan() {
+      fetch('/meals')
+        .then(response => response.json())
+        .then(meals => {
+          const planList = document.getElementById('meal-plan');
+          planList.innerHTML = '';
+          meals.forEach(meal => {
+            const li = document.createElement('li');
+            li.textContent = `${meal.date}: ${meal.recipe_title}`;
+            planList.appendChild(li);
+          });
+        });
     }
 
     function deleteRecipe(recipeId) {
@@ -45,14 +64,29 @@
         .then(response => {
           if (response.ok) {
             loadRecipes();
-          } else {
-            console.log('Delete failed');
+            loadMealPlan();
           }
+        });
+    }
+
+    function planRecipe(recipeId) {
+      const date = prompt('Enter date (YYYY-MM-DD):');
+      if (date) {
+        fetch('/meals', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ recipe_id: recipeId, date: date })
         })
-        .catch(err => console.log('Delete Error:', err));
+        .then(response => {
+          if (response.ok) {
+            loadMealPlan();
+          }
+        });
+      }
     }
 
     loadRecipes();
+    loadMealPlan();
   </script>
 </body>
 </html>
