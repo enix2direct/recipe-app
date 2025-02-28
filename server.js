@@ -18,13 +18,19 @@ app.post('/recipes', (req, res) => {
     return { quantity, unit, name };
   });
   db.run('INSERT INTO recipes (title) VALUES (?)', [recipeTitle], function(err) {
-    if (err) return res.send('Error adding recipe');
+    if (err) {
+      console.log('Error adding recipe:', err);
+      return res.send('Error adding recipe');
+    }
     const recipeId = this.lastID;
     if (ingredients.length > 0) {
       const placeholders = ingredients.map(() => '(?, ?, ?, ?)').join(',');
       const values = ingredients.flatMap(ing => [recipeId, ing.quantity, ing.unit, ing.name]);
       db.run(`INSERT INTO ingredients (recipe_id, quantity, unit, name) VALUES ${placeholders}`, values, (err) => {
-        if (err) return res.send('Error adding ingredients');
+        if (err) {
+          console.log('Error adding ingredients:', err);
+          return res.send('Error adding ingredients');
+        }
         res.redirect('/');
       });
     } else {
@@ -34,7 +40,10 @@ app.post('/recipes', (req, res) => {
 });
 app.get('/recipes', (req, res) => {
   db.all('SELECT r.id, r.title, i.quantity, i.unit, i.name FROM recipes r LEFT JOIN ingredients i ON r.id = i.recipe_id', (err, rows) => {
-    if (err) return res.send('Error fetching recipes');
+    if (err) {
+      console.log('Fetch Error:', err);
+      return res.send('Error fetching recipes');
+    }
     const recipes = {};
     rows.forEach(row => {
       if (!recipes[row.id]) {
@@ -50,11 +59,20 @@ app.get('/recipes', (req, res) => {
 app.delete('/recipes/:id', (req, res) => {
   const recipeId = req.params.id;
   db.run('DELETE FROM ingredients WHERE recipe_id = ?', [recipeId], (err) => {
-    if (err) return res.status(500).send('Error deleting ingredients');
+    if (err) {
+      console.log('Error deleting ingredients:', err);
+      return res.status(500).send('Error deleting ingredients');
+    }
     db.run('DELETE FROM meals WHERE recipe_id = ?', [recipeId], (err) => {
-      if (err) return res.status(500).send('Error deleting meals');
+      if (err) {
+        console.log('Error deleting meals:', err);
+        return res.status(500).send('Error deleting meals');
+      }
       db.run('DELETE FROM recipes WHERE id = ?', [recipeId], (err) => {
-        if (err) return res.status(500).send('Error deleting recipe');
+        if (err) {
+          console.log('Error deleting recipe:', err);
+          return res.status(500).send('Error deleting recipe');
+        }
         res.status(200).send('Recipe deleted');
       });
     });
@@ -63,13 +81,19 @@ app.delete('/recipes/:id', (req, res) => {
 app.post('/meals', (req, res) => {
   const { recipe_id, date } = req.body;
   db.run('INSERT INTO meals (recipe_id, date) VALUES (?, ?)', [recipe_id, date], (err) => {
-    if (err) return res.status(500).send('Error adding meal');
+    if (err) {
+      console.log('Error adding meal:', err);
+      return res.status(500).send('Error adding meal');
+    }
     res.status(200).send('Meal planned');
   });
 });
 app.get('/meals', (req, res) => {
   db.all('SELECT m.id, m.date, r.title AS recipe_title FROM meals m JOIN recipes r ON m.recipe_id = r.id', (err, rows) => {
-    if (err) return res.send('Error fetching meals');
+    if (err) {
+      console.log('Fetch Error:', err);
+      return res.send('Error fetching meals');
+    }
     res.json(rows);
   });
 });
