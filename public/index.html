@@ -27,6 +27,10 @@
             deleteBtn.textContent = 'Delete';
             deleteBtn.onclick = () => deleteRecipe(recipe.id);
             li.appendChild(deleteBtn);
+            const editBtn = document.createElement('button');
+            editBtn.textContent = 'Edit';
+            editBtn.onclick = () => editRecipe(recipe.id, recipe.title, recipe.ingredients);
+            li.appendChild(editBtn);
             const planBtn = document.createElement('button');
             planBtn.textContent = 'Plan';
             planBtn.onclick = () => planRecipe(recipe.id);
@@ -72,6 +76,27 @@
           }
         })
         .catch(err => console.log('Delete Error:', err));
+    }
+
+    function editRecipe(recipeId, currentTitle, currentIngredients) {
+      const title = prompt('Edit recipe title:', currentTitle);
+      if (title === null) return; // Cancelled
+      const ingredientsStr = currentIngredients.map(ing => `${ing.quantity} ${ing.unit} ${ing.name}`).join(', ');
+      const ingredients = prompt('Edit ingredients (comma-separated):', ingredientsStr);
+      if (ingredients === null) return; // Cancelled
+      fetch(`/recipes/${recipeId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, ingredients })
+      })
+      .then(response => {
+        if (response.ok) {
+          loadRecipes();
+        } else {
+          console.log('Edit failed');
+        }
+      })
+      .catch(err => console.log('Edit Error:', err));
     }
 
     function planRecipe(recipeId) {

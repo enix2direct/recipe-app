@@ -3,7 +3,7 @@ const app = express();
 const db = require('./database.js');
 app.use(express.static('public'));
 app.use(express.urlencoded({ extended: true }));
-app.use(express.json()); // For JSON POST requests
+app.use(express.json()); // For JSON POST/PUT requests
 app.get('/', (req, res) => {
   res.sendFile(__dirname + '/public/index.html');
 });
@@ -54,6 +54,45 @@ app.get('/recipes', (req, res) => {
       }
     });
     res.json(Object.values(recipes));
+  });
+});
+app.put('/recipes/:id', (req, res) => {
+  const recipeId = req.params.id;
+  const { title, ingredients } = req.body;
+  const parsedIngredients = ingredients ? ingredients.split(',').map(i => i.trim()).map(ing => {
+    const parts = ing.split(' ').filter(Boolean);
+    const quantity = parseFloat(parts[0]) || 0;
+    const unit = parts.length > 2 ? parts[1] : '';
+    const name = parts.slice(parts.length > 2 ? 2 : 1).join(' ');
+    return { quantity, unit, name };
+  }) : [];
+  // Update recipe title
+  db.run('UPDATE recipes SET title = ? WHERE id = ?', [title, recipeId], (err) => {
+    if (err) {
+      console.log('Error updating recipe:', err);
+      return res.status(500).send('Error updating recipe');
+    }
+    // Delete old ingredients
+    db.run('DELETE FROM ingredients WHERE recipe_id = ?', [recipeId], (err) => {
+      if (err) {
+        console.log('Error deleting old ingredients:', err);
+        return res.status(500).send('Error deleting old ingredients');
+      }
+      // Insert new ingredients
+      if (parsedIngredients.length > 0) {
+        const placeholders = parsedIngredients.map(() => '(?, ?, ?, ?)').join(',');
+        const values = parsedIngredients.flatMap(ing => [recipeId, ing.quantity, ing.unit, ing.name]);
+        db.run(`INSERT INTO ingredients (recipe_id, quantity, unit, name) VALUES ${placeholders}`, values, (err) => {
+          if (err) {
+            console.log('Error adding new ingredients:', err);
+            return res.status(500).send('Error adding new ingredients');
+          }
+          res.status(200).send('Recipe updated');
+        });
+      } else {
+        res.status(200).send('Recipe updated');
+      }
+    });
   });
 });
 app.delete('/recipes/:id', (req, res) => {
