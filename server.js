@@ -3,7 +3,7 @@ const app = express();
 const db = require('./database.js');
 app.use(express.static('public'));
 app.use(express.urlencoded({ extended: true }));
-app.use(express.json()); // For JSON POST/PUT requests
+app.use(express.json());
 app.get('/', (req, res) => {
   res.sendFile(__dirname + '/public/index.html');
 });
@@ -66,19 +66,16 @@ app.put('/recipes/:id', (req, res) => {
     const name = parts.slice(parts.length > 2 ? 2 : 1).join(' ');
     return { quantity, unit, name };
   }) : [];
-  // Update recipe title
   db.run('UPDATE recipes SET title = ? WHERE id = ?', [title, recipeId], (err) => {
     if (err) {
       console.log('Error updating recipe:', err);
       return res.status(500).send('Error updating recipe');
     }
-    // Delete old ingredients
     db.run('DELETE FROM ingredients WHERE recipe_id = ?', [recipeId], (err) => {
       if (err) {
         console.log('Error deleting old ingredients:', err);
         return res.status(500).send('Error deleting old ingredients');
       }
-      // Insert new ingredients
       if (parsedIngredients.length > 0) {
         const placeholders = parsedIngredients.map(() => '(?, ?, ?, ?)').join(',');
         const values = parsedIngredients.flatMap(ing => [recipeId, ing.quantity, ing.unit, ing.name]);
@@ -128,7 +125,14 @@ app.post('/meals', (req, res) => {
   });
 });
 app.get('/meals', (req, res) => {
-  db.all('SELECT m.id, m.date, r.title AS recipe_title FROM meals m JOIN recipes r ON m.recipe_id = r.id', (err, rows) => {
+  const { startDate, endDate } = req.query;
+  let query = 'SELECT m.id, m.date, r.title AS recipe_title FROM meals m JOIN recipes r ON m.recipe_id = r.id';
+  let params = [];
+  if (startDate && endDate) {
+    query += ' WHERE m.date BETWEEN ? AND ?';
+    params = [startDate, endDate];
+  }
+  db.all(query, params, (err, rows) => {
     if (err) {
       console.log('Fetch Error:', err);
       return res.send('Error fetching meals');
