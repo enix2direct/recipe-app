@@ -3,24 +3,82 @@
 <head>
   <title>Recipe App</title>
   <style>
-    table { border-collapse: collapse; margin: 10px 0; }
+    table { border-collapse: collapse; margin: 10px 0; width: 100%; }
     th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
-    button { margin: 0 5px; }
+    th { background: #f0f0f0; }
+    td { vertical-align: top; }
+    .week-header { font-weight: bold; text-align: center; }
+    .nav-btn { margin: 0 5px; }
+    .month-grid td { height: 100px; }
+    .meal { margin: 2px 0; }
   </style>
 </head>
 <body>
   <h1>My Recipes</h1>
-  <form action="/recipes" method="POST">
+  <form id="recipe-form">
     <input type="text" name="title" placeholder="Recipe Name"><br>
     <input type="text" name="ingredients" placeholder="Ingredients (e.g., 2 cups flour, 1 tsp salt)"><br>
     <button type="submit">Add Recipe</button>
   </form>
   <ul id="recipe-list"></ul>
   <h2>Meal Plan</h2>
-  <button onclick="showWeekView()">Week View</button>
-  <button onclick="showMonthView()">Month View</button>
+  <div class="week-nav">
+    <button class="nav-btn" onclick="prevWeek()">Prev Week</button>
+    <span id="week-range" class="week-header"></span>
+    <button class="nav-btn" onclick="nextWeek()">Next Week</button>
+    <button class="nav-btn" onclick="prevMonth()">Prev Month</button>
+    <span id="month-range" class="week-header" style="display:none;"></span>
+    <button class="nav-btn" onclick="nextMonth()">Next Month</button>
+    <button onclick="showWeekView()">Week View</button>
+    <button onclick="showMonthView()">Month View</button>
+  </div>
   <div id="meal-plan"></div>
   <script>
+    let currentWeekStart = new Date();
+    let currentMonth = new Date();
+    let currentView = 'week';
+
+    function getWeekDates(startDate) {
+      const start = new Date(startDate);
+      start.setDate(start.getDate() - start.getDay()); // Start on Sunday
+      const dates = [];
+      for (let i = 0; i < 7; i++) {
+        const date = new Date(start);
+        date.setDate(start.getDate() + i);
+        dates.push(date.toISOString().split('T')[0]);
+      }
+      return dates;
+    }
+
+    function getMonthDates(monthDate) {
+      const year = monthDate.getFullYear();
+      const month = monthDate.getMonth();
+      const firstDay = new Date(year, month, 1);
+      const lastDay = new Date(year, month + 1, 0);
+      const dates = [];
+      const firstDayOfWeek = firstDay.getDay(); // 0 (Sun) to 6 (Sat)
+      const daysInMonth = lastDay.getDate();
+      // Fill leading empty cells
+      for (let i = 0; i < firstDayOfWeek; i++) {
+        dates.push(null);
+      }
+      // Fill month days
+      for (let d = 1; d <= daysInMonth; d++) {
+        dates.push(new Date(year, month, d).toISOString().split('T')[0]);
+      }
+      // Pad to 5 weeks (35 days) or 6 weeks (42 days) if needed
+      const totalCells = firstDayOfWeek + daysInMonth;
+      while (dates.length < 35) {
+        dates.push(null); // Default to 5 weeks
+      }
+      if (totalCells > 35) { // Add 6th row only if days exceed 5 weeks
+        while (dates.length < 42) {
+          dates.push(null);
+        }
+      }
+      return dates;
+    }
+
     function loadRecipes() {
       fetch('/recipes')
         .then(response => response.json())
@@ -57,72 +115,106 @@
         .catch(err => console.log('Fetch Error:', err));
     }
 
-    function getWeekDates() {
-      const today = new Date();
-      const start = new Date(today);
-      start.setDate(today.getDate() - today.getDay()); // Start on Sunday
-      const dates = [];
-      for (let i = 0; i < 7; i++) {
-        const date = new Date(start);
-        date.setDate(start.getDate() + i);
-        dates.push(date.toISOString().split('T')[0]);
-      }
-      return dates;
-    }
-
-    function getMonthDates() {
-      const today = new Date();
-      const year = today.getFullYear();
-      const month = today.getMonth();
-      const firstDay = new Date(year, month, 1);
-      const lastDay = new Date(year, month + 1, 0);
-      const dates = [];
-      for (let d = new Date(firstDay); d <= lastDay; d.setDate(d.getDate() + 1)) {
-        dates.push(d.toISOString().split('T')[0]);
-      }
-      return dates;
-    }
-
-    function loadMealPlan(startDate, endDate, isMonth = false) {
+    function loadMealPlan(dates, isMonth = false) {
+      const startDate = dates.find(d => d !== null);
+      const endDate = dates[dates.length - 1];
       fetch(`/meals?startDate=${startDate}&endDate=${endDate}`)
         .then(response => response.json())
         .then(meals => {
           const planDiv = document.getElementById('meal-plan');
           planDiv.innerHTML = '';
-          const dates = isMonth ? getMonthDates() : getWeekDates();
           const table = document.createElement('table');
-          const thead = document.createElement('thead');
-          const tbody = document.createElement('tbody');
-          const headerRow = document.createElement('tr');
-          dates.forEach(date => {
-            const th = document.createElement('th');
-            th.textContent = isMonth ? date.split('-')[2] : date; // Day for month, full date for week
-            headerRow.appendChild(th);
-          });
-          thead.appendChild(headerRow);
-          const row = document.createElement('tr');
-          dates.forEach(date => {
-            const td = document.createElement('td');
-            const meal = meals.find(m => m.date === date);
-            td.textContent = meal ? meal.recipe_title : '-';
-            row.appendChild(td);
-          });
-          tbody.appendChild(row);
-          table.appendChild(thead);
-          table.appendChild(tbody);
+          if (!isMonth) {
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+            ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].forEach(day => {
+              const th = document.createElement('th');
+              th.textContent = day;
+              headerRow.appendChild(th);
+            });
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+            const tbody = document.createElement('tbody');
+            const row = document.createElement('tr');
+            dates.forEach(date => {
+              const td = document.createElement('td');
+              const meal = meals.find(m => m.date === date);
+              if (meal) {
+                const mealDiv = document.createElement('div');
+                mealDiv.textContent = meal.recipe_title;
+                mealDiv.className = 'meal';
+                td.appendChild(mealDiv);
+              }
+              row.appendChild(td);
+            });
+            tbody.appendChild(row);
+            table.appendChild(tbody);
+            document.getElementById('week-range').textContent = `${dates[0]} - ${dates[6]}`;
+            document.getElementById('week-range').style.display = 'inline';
+            document.getElementById('month-range').style.display = 'none';
+          } else {
+            const tbody = document.createElement('tbody');
+            for (let i = 0; i < (dates.length > 35 ? 6 : 5); i++) {
+              const row = document.createElement('tr');
+              for (let j = 0; j < 7; j++) {
+                const idx = i * 7 + j;
+                const td = document.createElement('td');
+                if (dates[idx]) {
+                  const day = dates[idx].split('-')[2];
+                  td.textContent = day;
+                  // Find meal for this exact date
+                  const meal = meals.find(m => m.date === dates[idx]);
+                  if (meal) {
+                    const mealDiv = document.createElement('div');
+                    mealDiv.textContent = meal.recipe_title;
+                    mealDiv.className = 'meal';
+                    td.appendChild(mealDiv);
+                  }
+                }
+                row.appendChild(td);
+              }
+              tbody.appendChild(row);
+            }
+            table.appendChild(tbody);
+            document.getElementById('month-range').textContent = `${currentMonth.toLocaleString('default', { month: 'long' })} ${currentMonth.getFullYear()}`;
+            document.getElementById('month-range').style.display = 'inline';
+            document.getElementById('week-range').style.display = 'none';
+          }
           planDiv.appendChild(table);
         })
         .catch(err => console.log('Fetch Error:', err));
     }
 
     function showWeekView() {
-      const dates = getWeekDates();
-      loadMealPlan(dates[0], dates[6]);
+      currentView = 'week';
+      const dates = getWeekDates(currentWeekStart);
+      loadMealPlan(dates);
     }
 
     function showMonthView() {
-      const dates = getMonthDates();
-      loadMealPlan(dates[0], dates[dates.length - 1], true);
+      currentView = 'month';
+      const dates = getMonthDates(currentMonth);
+      loadMealPlan(dates, true);
+    }
+
+    function prevWeek() {
+      currentWeekStart.setDate(currentWeekStart.getDate() - 7);
+      if (currentView === 'week') showWeekView();
+    }
+
+    function nextWeek() {
+      currentWeekStart.setDate(currentWeekStart.getDate() + 7);
+      if (currentView === 'week') showWeekView();
+    }
+
+    function prevMonth() {
+      currentMonth.setMonth(currentMonth.getMonth() - 1);
+      if (currentView === 'month') showMonthView();
+    }
+
+    function nextMonth() {
+      currentMonth.setMonth(currentMonth.getMonth() + 1);
+      if (currentView === 'month') showMonthView();
     }
 
     function deleteRecipe(recipeId) {
@@ -130,7 +222,8 @@
         .then(response => {
           if (response.ok) {
             loadRecipes();
-            showWeekView(); // Default to week view after delete
+            if (currentView === 'week') showWeekView();
+            else showMonthView();
           } else {
             console.log('Delete failed');
           }
@@ -152,7 +245,8 @@
       .then(response => {
         if (response.ok) {
           loadRecipes();
-          showWeekView();
+          if (currentView === 'week') showWeekView();
+          else showMonthView();
         } else {
           console.log('Edit failed');
         }
@@ -168,9 +262,11 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ recipe_id: recipeId, date: date })
         })
-        .then(response => {
-          if (response.ok) {
-            showWeekView();
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            if (currentView === 'week') showWeekView();
+            else showMonthView();
           } else {
             console.log('Plan failed');
           }
@@ -179,8 +275,32 @@
       }
     }
 
+    document.getElementById('recipe-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const formData = new FormData(this);
+      const title = formData.get('title');
+      const ingredients = formData.get('ingredients');
+      fetch('/recipes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, ingredients })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          loadRecipes();
+          if (currentView === 'week') showWeekView();
+          else showMonthView();
+        } else {
+          console.log('Add failed');
+        }
+      })
+      .catch(err => console.log('Add Error:', err));
+      this.reset();
+    });
+
     loadRecipes();
-    showWeekView(); // Start with week view
+    showWeekView();
   </script>
 </body>
 </html>

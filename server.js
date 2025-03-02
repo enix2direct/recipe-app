@@ -20,7 +20,7 @@ app.post('/recipes', (req, res) => {
   db.run('INSERT INTO recipes (title) VALUES (?)', [recipeTitle], function(err) {
     if (err) {
       console.log('Error adding recipe:', err);
-      return res.send('Error adding recipe');
+      return res.status(500).send('Error adding recipe');
     }
     const recipeId = this.lastID;
     if (ingredients.length > 0) {
@@ -29,12 +29,12 @@ app.post('/recipes', (req, res) => {
       db.run(`INSERT INTO ingredients (recipe_id, quantity, unit, name) VALUES ${placeholders}`, values, (err) => {
         if (err) {
           console.log('Error adding ingredients:', err);
-          return res.send('Error adding ingredients');
+          return res.status(500).send('Error adding ingredients');
         }
-        res.redirect('/');
+        res.status(200).json({ success: true });
       });
     } else {
-      res.redirect('/');
+      res.status(200).json({ success: true });
     }
   });
 });
@@ -121,7 +121,7 @@ app.post('/meals', (req, res) => {
       console.log('Error adding meal:', err);
       return res.status(500).send('Error adding meal');
     }
-    res.status(200).send('Meal planned');
+    res.status(200).json({ success: true }); // JSON response
   });
 });
 app.get('/meals', (req, res) => {
